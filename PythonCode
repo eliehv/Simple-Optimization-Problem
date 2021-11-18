@@ -1,0 +1,65 @@
+#defining the problem as a function containing objective and constraints
+import math
+def f_constrained(x):
+    return -math.pi*x[0]**2 - 4 * x[0]* x[1] , [x[0],x[1]], [(math.pi + 4)*x[0] + 2*x[1] -12]
+    
+    # define penalty function
+def alpha(x,f): 
+    (_,ieq,eq) = f(x)
+    return sum([min([0,ieq_j])**2 for ieq_j in ieq])\
++sum([eq_k**2 for eq_k in eq])
+
+# combine objective and penalty functions
+def penalized_function(x,f,r): 
+    return f(x)[0] + r*alpha(x,f)
+    
+    start = [0,0] # starting point
+
+import numpy as np
+import ad
+from scipy.optimize import minimize
+r = 1 # initialize penalty parameter
+x_old = np.array([float('inf')]*2)
+x_new = start
+steps = []
+while np.linalg.norm(x_new-x_old)>0.0001:
+    x_old = x_new
+    
+    # optimize the penalized function using scipy optimize
+#     res = minimize(lambda x:penalized_function(x,f_constrained,r),
+#                x_old,method='Nelder-Mead') 
+    g=lambda x:penalized_function(x,f_constrained,r)
+    res = minimize(g,
+               x_old,method='Newton-CG',jac=ad.gh(g)[0] , hess=ad.gh(g)[1])
+    
+    x_new = np.array(res.x)
+    steps.append(list(x_new))
+    r = 10*r #update penalty parameter
+print("x : ",x_new) 
+print("r : ",r)
+print("number of iterations : ",len(steps)) # print number of steps
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# plot steps
+def plot_2d_steps2(steps,start):
+    myvec = np.array([start]+steps).transpose()
+    plt.plot(myvec[0,],myvec[1,],'rx')
+    for label,x,y in zip([str(i) for i in range(len(steps)+1)],myvec[0,],myvec[1,]):
+        plt.annotate(label,xy = (x, y))
+    
+    return plt
+    
+    
+    (f_val,ieq,eq) = f_constrained(x_new)
+print("Value of f is "+str(f_val))
+if len(ieq)>0:
+    print("The values of inequality constraints are:")
+    for ieq_j in ieq:
+        print(str(ieq_j)+", ")
+if len(eq)>0:
+    print("The values of the equality constraints are:")
+    for eq_k in eq:
+        print(str(eq_k)+", ")
